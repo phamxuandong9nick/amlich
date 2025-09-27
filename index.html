@@ -11,6 +11,9 @@
     <style>
         /* Using Google Font 'Inter' for better readability */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html {
+            scroll-behavior: smooth; /* Enable smooth scrolling */
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6; /* bg-gray-100 */
@@ -122,10 +125,10 @@
     const calendarContainer = document.getElementById('calendar-container');
     const yearInput = document.getElementById('year-input');
     const viewCalendarBtn = document.getElementById('view-calendar-btn');
-    const todayBtn = document.getElementById('today-btn'); // Nút mới
+    const todayBtn = document.getElementById('today-btn');
     const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
-    function generateCalendar(year) {
+    function generateCalendar(year, scrollToMonth = -1) {
         calendarContainer.innerHTML = ''; 
 
         const today = new Date();
@@ -136,6 +139,8 @@
         for (let month = 0; month < 12; month++) {
             const monthName = `Tháng ${month + 1}`;
             const monthDiv = document.createElement('div');
+            // Gán ID cho từng tháng để có thể nhảy tới
+            monthDiv.id = `month-${month}`;
             monthDiv.className = 'border rounded-lg p-4 bg-white shadow';
 
             const monthHeader = document.createElement('h3');
@@ -168,7 +173,6 @@
                 const cell = document.createElement('div');
                 cell.className = 'day-cell';
                 
-                // Highlight today's date
                 if (year === currentYear && month === currentMonth && day === currentDate) {
                     cell.classList.add('today');
                 }
@@ -197,6 +201,17 @@
             monthDiv.appendChild(grid);
             calendarContainer.appendChild(monthDiv);
         }
+
+        // Logic để cuộn đến tháng chỉ định
+        if (scrollToMonth !== -1) {
+            // Dùng setTimeout để đảm bảo DOM đã được render xong trước khi cuộn
+            setTimeout(() => {
+                const targetMonthEl = document.getElementById(`month-${scrollToMonth}`);
+                if (targetMonthEl) {
+                    targetMonthEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        }
     }
 
     // Event Listeners
@@ -209,18 +224,23 @@
         }
     });
 
-    // Event listener for the "Today" button
     todayBtn.addEventListener('click', () => {
-        const currentYear = new Date().getFullYear();
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
         yearInput.value = currentYear;
-        generateCalendar(currentYear);
+        // Gọi hàm generateCalendar và truyền vào tháng hiện tại để cuộn tới
+        generateCalendar(currentYear, currentMonth);
     });
 
     // Initial Load
     window.addEventListener('load', () => {
-        const currentYear = new Date().getFullYear();
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
         yearInput.value = currentYear;
-        generateCalendar(currentYear);
+        // Tải trang lần đầu cũng sẽ tự động cuộn đến tháng hiện tại
+        generateCalendar(currentYear, currentMonth);
     });
 </script>
 
