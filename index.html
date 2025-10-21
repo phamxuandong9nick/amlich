@@ -33,6 +33,18 @@
             color: #ef4444;
             font-weight: bold;
         }
+        .birthday-day {
+            position: relative;
+        }
+        .birthday-day::before {
+            content: '!';
+            position: absolute;
+            top: 0px;
+            left: 4px;
+            font-size: 1.2rem;
+            color: #3b82f6;
+            font-weight: bold;
+        }
         .public-holiday {
              background-color: #cffafe; /* Cyan-100 */
              border: 2px solid #06b6d4; /* Cyan-500 */
@@ -157,6 +169,15 @@
             "1-1": "Tết Dương lịch",
             // --- VÍ DỤ ---
             // "12-25": "Lễ Giáng sinh",
+        };
+        // ===================================================================================
+        // NƠI THÊM NGÀY SINH NHẬT (THEO LỊCH DƯƠNG)
+        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên người thân"
+        // Ví dụ: "10-25": "Sinh nhật Mẹ",
+        // ===================================================================================
+        const BIRTHDAYS = {
+            // --- VÍ DỤ ---
+            "2-8": "Sinh nhật tôi",
         };
         // ===================================================================================
 
@@ -402,6 +423,11 @@
                         }
                     }
 
+                    // Check for birthdays
+                    if (BIRTHDAYS[solarKey]) {
+                        classes += ' birthday-day';
+                    }
+
                     // Check for public holidays
                     if (PUBLIC_HOLIDAYS[solarKey]) {
                         classes += ' public-holiday';
@@ -537,6 +563,7 @@
     </script>
 </body>
 </html>
+
 
 
 
