@@ -72,7 +72,7 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            #controls, #modal-backdrop {
+            #controls, #modal-backdrop, #config-manager {
                 display: none !important;
             }
             #calendar-container {
@@ -126,10 +126,22 @@
         <!-- Vùng hiển thị lịch -->
         <div id="calendar-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
-        <!-- Chú thích ngày giỗ -->
-        <div id="memorial-notes" class="mt-8 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-             <h3 class="text-xl font-bold mb-4 text-amber-600 dark:text-amber-400">Chú thích các ngày Giỗ trong năm</h3>
-             <div id="memorial-notes-content"></div>
+        <!-- Chú thích -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            <div id="memorial-notes" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                 <h3 class="text-xl font-bold mb-4 text-amber-600 dark:text-amber-400">Chú thích các ngày Giỗ trong năm</h3>
+                 <div id="memorial-notes-content"></div>
+            </div>
+             <!-- Trình quản lý cấu hình -->
+            <div id="config-manager" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+                <h3 class="text-xl font-bold mb-4 text-sky-600 dark:text-sky-400">Chia sẻ & Sao lưu Lịch</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Sử dụng các nút bên dưới để sao lưu toàn bộ dữ liệu (giỗ, sinh nhật, ghi chú...) hoặc chia sẻ với người khác.</p>
+                <textarea id="config-textarea" class="w-full h-32 p-2 rounded-md border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs" placeholder="Dữ liệu cấu hình sẽ xuất hiện ở đây..."></textarea>
+                <div class="flex space-x-2 mt-2">
+                    <button id="export-btn" class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Xuất Cấu hình</button>
+                    <button id="import-btn" class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">Nhập Cấu hình</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -149,35 +161,20 @@
 
     <script type="module">
         // ===================================================================================
-        // NƠI THÊM CÁC NGÀY GIỖ CỦA GIA ĐÌNH (THEO LỊCH ÂM)
-        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên sự kiện"
-        // Ví dụ: "1-1": "Tết Nguyên Đán",
+        // CẤU HÌNH MẶC ĐỊNH - SẼ BỊ GHI ĐÈ KHI BẠN NHẬP CẤU HÌNH MỚI
         // ===================================================================================
-        const MEMORIAL_DAYS = {
-            "1-1": "Tết Nguyên Đán",
-            
-
-            "9-13": "Giỗ Cụ Nhị",
-            "4-16": "Giỗ Cụ Chẩm",
-        };
-        // ===================================================================================
-        // NƠI THÊM CÁC NGÀY NGHỈ DƯƠNG LỊCH CỦA BẠN
-        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên sự kiện"
-        // Ví dụ: "1-1": "Tết Dương lịch",
-        // ===================================================================================
-        const PUBLIC_HOLIDAYS = {
-            "1-1": "Tết Dương lịch",
-            // --- VÍ DỤ ---
-            // "12-25": "Lễ Giáng sinh",
-        };
-        // ===================================================================================
-        // NƠI THÊM NGÀY SINH NHẬT (THEO LỊCH DƯƠNG)
-        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên người thân"
-        // Ví dụ: "10-25": "Sinh nhật Mẹ",
-        // ===================================================================================
-        const BIRTHDAYS = {
-            // --- VÍ DỤ ---
-            "2-8": "Sinh nhật tôi",
+        const DEFAULT_CONFIG = {
+            memorialDays: {
+                "1-1": "Tết Nguyên Đán",
+                "9-13": "Giỗ Cụ Nhị",
+                "4-16": "Giỗ Cụ Chẩm",
+            },
+            publicHolidays: {
+                "1-1": "Tết Dương lịch",
+            },
+            birthdays: {
+                 "2-8": "Sinh nhật tôi",
+            }
         };
         // ===================================================================================
 
@@ -294,20 +291,42 @@
 
         const satOddBtn = document.getElementById('sat-odd-btn');
         const satEvenBtn = document.getElementById('sat-even-btn');
+        
+        const configTextarea = document.getElementById('config-textarea');
+        const exportBtn = document.getElementById('export-btn');
+        const importBtn = document.getElementById('import-btn');
 
         let currentYear = new Date().getFullYear();
         let currentEditingDate = null;
         let saturdayOffRule = 'even'; // 'odd' or 'even'
-        let customEvents = {};
+        
+        let memorialDays, publicHolidays, birthdays, customEvents;
 
-        function loadEvents() {
-            const savedEvents = localStorage.getItem(`customEvents_${currentYear}`);
-            customEvents = savedEvents ? JSON.parse(savedEvents) : {};
+        function loadConfig() {
+            const savedConfig = localStorage.getItem('calendarConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                memorialDays = config.memorialDays || {};
+                publicHolidays = config.publicHolidays || {};
+                birthdays = config.birthdays || {};
+                // Custom events are per-year
+                const savedEvents = localStorage.getItem(`customEvents_${currentYear}`);
+                customEvents = savedEvents ? JSON.parse(savedEvents) : {};
+
+            } else {
+                memorialDays = DEFAULT_CONFIG.memorialDays;
+                publicHolidays = DEFAULT_CONFIG.publicHolidays;
+                birthdays = DEFAULT_CONFIG.birthdays;
+                customEvents = {};
+            }
         }
-
-        function saveEvents() {
+        
+        function saveConfig() {
+            const config = { memorialDays, publicHolidays, birthdays };
+            localStorage.setItem('calendarConfig', JSON.stringify(config));
             localStorage.setItem(`customEvents_${currentYear}`, JSON.stringify(customEvents));
         }
+
 
         function showModal(date) {
             currentEditingDate = date;
@@ -344,7 +363,10 @@
 
         function generateCalendar(year) {
             currentYear = year;
-            loadEvents();
+            // Load custom events for the specific year
+            const savedEvents = localStorage.getItem(`customEvents_${currentYear}`);
+            customEvents = savedEvents ? JSON.parse(savedEvents) : {};
+
             calendarContainer.innerHTML = '';
             memorialNotesContainer.innerHTML = '';
             
@@ -401,48 +423,41 @@
                     }
                     lunarDaySpan.textContent = lunarDisplayText;
 
-                    // Check for today
                     const today = new Date();
                     if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
                         classes += ' today';
                     }
 
-                    // Check for special lunar days (mùng 1, 15)
                     if (lunar.lunarDay === 1 || lunar.lunarDay === 15) {
                         lunarDaySpan.classList.add('lunar-special-day', 'font-semibold');
                     }
 
-                    // Check for memorial days
-                    if (MEMORIAL_DAYS[lunarKey]) {
+                    if (memorialDays[lunarKey]) {
                         classes += ' memorial-day';
                         if (!collectedMemorials[lunarKey]) {
                              collectedMemorials[lunarKey] = {
-                                event: MEMORIAL_DAYS[lunarKey],
+                                event: memorialDays[lunarKey],
                                 solarDate: `${day}/${month + 1}/${year}`
                              };
                         }
                     }
 
-                    // Check for birthdays
-                    if (BIRTHDAYS[solarKey]) {
+                    if (birthdays[solarKey]) {
                         classes += ' birthday-day';
                     }
 
-                    // Check for public holidays
-                    if (PUBLIC_HOLIDAYS[solarKey]) {
+                    if (publicHolidays[solarKey]) {
                         classes += ' public-holiday';
                     }
 
-                    // Check for custom events
                     if (customEvents[dateKey]) {
                         classes += ' custom-event';
                     }
 
-                    // Check for weekend off
                     const dayOfWeek = date.getDay();
-                    if (dayOfWeek === 0) { // Sunday
+                    if (dayOfWeek === 0) {
                         classes += ' weekend-off';
-                    } else if (dayOfWeek === 6) { // Saturday
+                    } else if (dayOfWeek === 6) {
                         const weekNumber = getWeekNumber(date);
                         if ((saturdayOffRule === 'even' && weekNumber % 2 === 0) || (saturdayOffRule === 'odd' && weekNumber % 2 !== 0)) {
                              classes += ' weekend-off';
@@ -452,9 +467,7 @@
                     dayCell.className = classes;
                     dayCell.appendChild(solarDaySpan);
                     dayCell.appendChild(lunarDaySpan);
-
                     dayCell.onclick = () => showModal(date);
-
                     daysGrid.appendChild(dayCell);
                 }
                 
@@ -462,7 +475,6 @@
                 calendarContainer.appendChild(monthDiv);
             }
             
-            // Generate memorial notes
             if (Object.keys(collectedMemorials).length > 0) {
                  const notesList = document.createElement('ul');
                  notesList.className = 'space-y-2 list-disc list-inside';
@@ -489,7 +501,7 @@
             if (year >= 1900 && year <= 2100) {
                 generateCalendar(year);
             } else {
-                alert('Vui lòng nhập năm trong khoảng từ 1900 đến 2100.');
+                console.error('Vui lòng nhập năm trong khoảng từ 1900 đến 2100.');
             }
         });
 
@@ -505,9 +517,7 @@
             }, 100);
         });
 
-        printBtn.addEventListener('click', () => {
-            window.print();
-        });
+        printBtn.addEventListener('click', () => { window.print(); });
 
         satOddBtn.addEventListener('click', () => {
             saturdayOffRule = 'odd';
@@ -523,6 +533,52 @@
             if (yearInput.value) generateCalendar(parseInt(yearInput.value));
         });
 
+        // Config manager event listeners
+        exportBtn.addEventListener('click', () => {
+            const fullConfig = {
+                memorialDays,
+                publicHolidays,
+                birthdays,
+                customEventsByYear: { [currentYear]: customEvents } // Export current year's events
+            };
+            configTextarea.value = JSON.stringify(fullConfig, null, 2);
+        });
+
+        importBtn.addEventListener('click', () => {
+            try {
+                const configStr = configTextarea.value;
+                if (!configStr) {
+                    console.error("Ô nhập liệu trống.");
+                    return;
+                };
+                const importedConfig = JSON.parse(configStr);
+
+                // Update data, providing empty objects as fallbacks
+                memorialDays = importedConfig.memorialDays || {};
+                publicHolidays = importedConfig.publicHolidays || {};
+                birthdays = importedConfig.birthdays || {};
+
+                // Import custom events for the current year if they exist in the file
+                if (importedConfig.customEventsByYear && importedConfig.customEventsByYear[currentYear]) {
+                    customEvents = importedConfig.customEventsByYear[currentYear];
+                } else {
+                    // Keep existing events for the year if none are in the import file for this year
+                    const savedEvents = localStorage.getItem(`customEvents_${currentYear}`);
+                    customEvents = savedEvents ? JSON.parse(savedEvents) : {};
+                }
+                
+                saveConfig();
+                generateCalendar(currentYear);
+                configTextarea.value = ''; // Clear after import
+                alert('Đã nhập cấu hình thành công!');
+
+            } catch(e) {
+                console.error("Lỗi khi nhập cấu hình: ", e);
+                alert("Lỗi: Dữ liệu cấu hình không hợp lệ. Vui lòng kiểm tra lại.");
+            }
+        });
+
+
         // Modal event listeners
         saveEventBtn.addEventListener('click', () => {
             if (currentEditingDate) {
@@ -533,7 +589,7 @@
                 } else {
                     delete customEvents[dateKey];
                 }
-                saveEvents();
+                saveConfig();
                 generateCalendar(currentYear);
                 hideModal();
             }
@@ -543,7 +599,7 @@
              if (currentEditingDate) {
                 const dateKey = `${currentEditingDate.getFullYear()}-${currentEditingDate.getMonth() + 1}-${currentEditingDate.getDate()}`;
                 delete customEvents[dateKey];
-                saveEvents();
+                saveConfig();
                 generateCalendar(currentYear);
                 hideModal();
             }
@@ -558,15 +614,10 @@
 
 
         // Initial load
+        loadConfig();
         yearInput.value = currentYear;
         generateCalendar(currentYear);
     </script>
 </body>
 </html>
-
-
-
-
-
-
 
