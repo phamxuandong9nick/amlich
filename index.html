@@ -3,247 +3,539 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lịch Vạn Niên - Xem Lịch Âm Dương</title>
-    <!-- Tailwind CSS for styling -->
+    <title>Lịch Vạn Niên (Âm - Dương Lịch)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Using Google Font 'Inter' for better readability */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        html {
-            scroll-behavior: smooth; /* Enable smooth scrolling */
-        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* bg-gray-100 */
-        }
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, minmax(0, 1fr));
         }
         .day-cell {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border: 1px solid #e5e7eb; /* border-gray-200 */
+            transition: all 0.2s ease-in-out;
+            aspect-ratio: 1/1;
+            cursor: pointer;
+        }
+        .day-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .memorial-day {
+            font-weight: 800; /* Extra bold */
+            border: 2px solid #f59e0b; /* Amber-500 */
             position: relative;
         }
-        .day-header {
-            font-weight: 600;
-            background-color: #f9fafb; /* bg-gray-50 */
+        .memorial-day::after {
+            content: '*';
+            position: absolute;
+            top: 0px;
+            right: 4px;
+            font-size: 1.2rem;
+            color: #ef4444;
+            font-weight: bold;
         }
-        .lunar-date {
-            font-size: 0.75rem; /* text-xs */
-            color: #6b7280; /* text-gray-500 */
+        .public-holiday {
+             background-color: #cffafe; /* Cyan-100 */
+             border: 2px solid #06b6d4; /* Cyan-500 */
+        }
+        .custom-event {
+            background-color: #d1fae5; /* Green-100 */
+            border: 2px solid #10b981; /* Green-500 */
+        }
+        .lunar-special-day {
+            color: #2563eb; /* Blue-600 */
         }
         .today {
-            border: 2px solid #3b82f6; /* border-blue-500 */
-            border-radius: 0.25rem; /* rounded */
-            background-color: #eff6ff; /* bg-blue-50 */
+            background-color: #bfdbfe; /* Blue-200 */
+            border: 2px solid #3b82f6; /* Blue-500 */
+        }
+        .weekend-off {
+            color: #ef4444; /* Red-500 */
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            #controls, #modal-backdrop {
+                display: none !important;
+            }
+            #calendar-container {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 1rem;
+            }
+            .month-grid {
+                page-break-inside: avoid;
+                border: 2px solid #000;
+                padding: 0.5rem;
+                border-radius: 0.5rem;
+            }
+            .day-cell {
+                min-height: 80px; /* Ensure consistent height for printing */
+            }
         }
     </style>
 </head>
-<body class="p-4 md:p-8">
-
-    <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
-        <!-- Header Section -->
-        <div class="text-center border-b pb-6 mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Lịch Vạn Niên</h1>
-            <p class="text-gray-600 mt-2">Xem lịch Âm - Dương chi tiết của 12 tháng</p>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Bảng điều khiển -->
+        <div id="controls" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg mb-8 space-y-4">
+            <h1 class="text-3xl font-bold text-center text-blue-600 dark:text-blue-400">Lịch Vạn Niên (Âm - Dương Lịch)</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <!-- Nhập năm -->
+                <div>
+                    <label for="year-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nhập năm dương lịch</label>
+                    <input type="number" id="year-input" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-gray-50 dark:bg-gray-700 h-10 px-3">
+                </div>
+                <!-- Cài đặt Thứ 7 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Chọn tuần nghỉ Thứ 7</label>
+                    <div class="mt-1 grid grid-cols-2 gap-2 rounded-md bg-gray-200 dark:bg-gray-700 p-1">
+                        <button id="sat-odd-btn" class="px-4 py-1.5 text-sm font-semibold rounded-md transition">Tuần lẻ nghỉ</button>
+                        <button id="sat-even-btn" class="px-4 py-1.5 text-sm font-semibold rounded-md transition bg-blue-500 text-white">Tuần chẵn nghỉ</button>
+                    </div>
+                </div>
+                 <!-- Các nút chức năng -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button id="generate-btn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-blue-700 transition">Xem Lịch</button>
+                    <button id="today-btn" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-green-700 transition">Hôm Nay</button>
+                    <button id="print-btn" class="w-full bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow hover:bg-gray-700 transition">In Lịch</button>
+                </div>
+            </div>
+             <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+                * Mẹo: Click vào một ngày bất kỳ để thêm ghi chú. Dữ liệu sẽ được lưu trên trình duyệt của bạn.
+            </p>
         </div>
 
-        <!-- Year Selection -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            <label for="year-input" class="text-lg font-medium text-gray-700">Chọn năm:</label>
-            <input type="number" id="year-input" class="w-32 p-2 border border-gray-300 rounded-lg text-center" min="1901" max="2100">
-            <button id="view-calendar-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-300">
-                <i class="fas fa-eye mr-2"></i>Xem Lịch
-            </button>
-            <button id="today-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-700 transition duration-300">
-                <i class="fas fa-calendar-day mr-2"></i>Hôm nay
-            </button>
-        </div>
+        <!-- Vùng hiển thị lịch -->
+        <div id="calendar-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
-        <!-- Calendar Container -->
-        <div id="calendar-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <!-- Calendars for 12 months will be generated here -->
+        <!-- Chú thích ngày giỗ -->
+        <div id="memorial-notes" class="mt-8 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+             <h3 class="text-xl font-bold mb-4 text-amber-600 dark:text-amber-400">Chú thích các ngày Giỗ trong năm</h3>
+             <div id="memorial-notes-content"></div>
         </div>
     </div>
-    
-    <!-- Nút nổi để trở về trang chủ -->
-    <a href="https://phamxuandong9nick.github.io/home/" title="Trở về trang chủ" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-110 z-50">
-        <i class="fas fa-home text-2xl"></i>
-    </a>
 
-<script>
-    // --- LUNAR CALENDAR CONVERSION LOGIC ---
-    // This is a self-contained Solar to Lunar conversion utility.
-    function getLunarDate(dd, mm, yyyy) {
-        const lunarInfo = [0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2, 0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977, 0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970, 0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950, 0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557, 0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5d0, 0x14573, 0x052d0, 0x0a9a8, 0x0e950, 0x06aa0, 0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0, 0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b5a0, 0x195a6, 0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570, 0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0, 0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5, 0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930, 0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530, 0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45, 0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0];
-        let date = new Date(parseInt(yyyy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
-        let i, leap = 0, temp = 0;
-        let baseDate = new Date(1900, 0, 31);
-        let offset = Math.round((date - baseDate) / 86400000);
+    <!-- Modal để thêm/sửa ghi chú -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div id="event-modal" class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-11/12 max-w-md transform transition-all scale-95 opacity-0">
+            <h2 class="text-lg font-bold mb-4" id="modal-title">Thêm ghi chú</h2>
+            <textarea id="event-text" class="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm sm:text-sm bg-gray-50 dark:bg-gray-700" rows="3" placeholder="Nhập nội dung..."></textarea>
+            <div class="mt-4 flex justify-end space-x-2">
+                <button id="delete-event-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition hidden">Xóa</button>
+                <button id="cancel-event-btn" class="bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg hover:bg-gray-400 transition">Hủy</button>
+                <button id="save-event-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Lưu</button>
+            </div>
+        </div>
+    </div>
 
-        for (i = 1900; i < 2101 && offset > 0; i++) {
-            temp = getLunarYearDays(i);
-            offset -= temp;
+
+    <script type="module">
+        // ===================================================================================
+        // NƠI THÊM CÁC NGÀY GIỖ CỦA GIA ĐÌNH (THEO LỊCH ÂM)
+        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên sự kiện"
+        // Ví dụ: "1-1": "Tết Nguyên Đán",
+        // ===================================================================================
+        const MEMORIAL_DAYS = {
+            "1-1": "Tết Nguyên Đán",
+            
+
+            "9-13": "Giỗ Cụ Nhị",
+            "4-16": "Giỗ Cụ Chẩm",
+        };
+        // ===================================================================================
+        // NƠI THÊM CÁC NGÀY NGHỈ DƯƠNG LỊCH CỦA BẠN
+        // Hướng dẫn: Thêm các ngày theo định dạng "tháng-ngày": "Tên sự kiện"
+        // Ví dụ: "1-1": "Tết Dương lịch",
+        // ===================================================================================
+        const PUBLIC_HOLIDAYS = {
+            "1-1": "Tết Dương lịch",
+            // --- VÍ DỤ ---
+            // "12-25": "Lễ Giáng sinh",
+        };
+        // ===================================================================================
+
+        // ===================================================================================
+        // BỘ MÃ CHUYỂN ĐỔI ÂM LỊCH - KHÔNG CHỈNH SỬA
+        // ===================================================================================
+        const LUNAR_CALENDAR_INFO = [
+            0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
+            0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
+            0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
+            0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
+            0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
+            0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5b0, 0x14573, 0x052b0, 0x0a9a8, 0x0e950, 0x06aa0,
+            0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
+            0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b6a0, 0x195a6,
+            0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
+            0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0,
+            0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
+            0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
+            0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
+            0x05aa0, 0x076a3, 0x096d0, 0x04bd7, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
+            0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0
+        ];
+
+        function getLunarYearDays(lunarYear) {
+            let i, sum = 348;
+            for (i = 0x8000; i > 0x8; i >>= 1) {
+                sum += (LUNAR_CALENDAR_INFO[lunarYear - 1900] & i) ? 1 : 0;
+            }
+            return sum + getLunarLeapDays(lunarYear);
         }
 
-        if (offset < 0) {
-            offset += temp;
-            i--;
+        function getLunarLeapMonth(lunarYear) {
+            return LUNAR_CALENDAR_INFO[lunarYear - 1900] & 0xf;
         }
 
-        let year = i;
-        leap = getLeapMonth(i);
-        let isLeap = false;
-
-        for (i = 1; i < 13 && offset > 0; i++) {
-            if (leap > 0 && i == (leap + 1) && !isLeap) { --i; isLeap = true; temp = getLeapMonthDays(year); } 
-            else { temp = getMonthDays(year, i); }
-            if (isLeap && i == (leap + 1)) isLeap = false;
-            offset -= temp;
+        function getLunarLeapDays(lunarYear) {
+            if (getLunarLeapMonth(lunarYear)) {
+                return (LUNAR_CALENDAR_INFO[lunarYear - 1900] & 0x10000) ? 30 : 29;
+            }
+            return 0;
         }
 
-        if (offset < 0) { offset += temp; --i; }
+        function getLunarMonthDays(lunarYear, lunarMonth) {
+            return (LUNAR_CALENDAR_INFO[lunarYear - 1900] & (0x10000 >> lunarMonth)) ? 30 : 29;
+        }
 
-        let month = i;
-        let day = offset + 1;
-        return { day: day, month: month, year: year, isLeap: isLeap };
+        function convertSolarToLunar(solarYear, solarMonth, solarDay) {
+            solarMonth = solarMonth > 0 ? solarMonth - 1 : 11;
+            const date = new Date(solarYear, solarMonth, solarDay);
+            let i, leap = 0, temp = 0;
+            const baseDate = new Date(1900, 0, 31);
+            let offset = Math.floor((date - baseDate) / 86400000);
 
-        function getLeapMonth(year) { return (lunarInfo[year - 1900] & 0xf); }
-        function getLeapMonthDays(year) { if (getLeapMonth(year)) return ((lunarInfo[year - 1900] & 0x10000) ? 30 : 29); return 0; }
-        function getMonthDays(year, month) { return ((lunarInfo[year - 1900] & (0x10000 >> month)) ? 30 : 29); }
-        function getLunarYearDays(year) { let i, sum = 348; for (i = 0x8000; i > 0x8; i >>= 1) sum += ((lunarInfo[year - 1900] & i) ? 1 : 0); return (sum + getLeapMonthDays(year)); }
-    }
-    // --- END LUNAR CALENDAR CONVERSION LOGIC ---
-
-    const calendarContainer = document.getElementById('calendar-container');
-    const yearInput = document.getElementById('year-input');
-    const viewCalendarBtn = document.getElementById('view-calendar-btn');
-    const todayBtn = document.getElementById('today-btn');
-    const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-
-    function generateCalendar(year, scrollToMonth = -1) {
-        calendarContainer.innerHTML = ''; 
-
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-        const currentDate = today.getDate();
-
-        for (let month = 0; month < 12; month++) {
-            const monthName = `Tháng ${month + 1}`;
-            const monthDiv = document.createElement('div');
-            // Gán ID cho từng tháng để có thể nhảy tới
-            monthDiv.id = `month-${month}`;
-            monthDiv.className = 'border rounded-lg p-4 bg-white shadow';
-
-            const monthHeader = document.createElement('h3');
-            monthHeader.className = 'text-xl font-bold text-center mb-4 text-gray-700';
-            monthHeader.textContent = monthName;
-            monthDiv.appendChild(monthHeader);
-
-            const grid = document.createElement('div');
-            grid.className = 'calendar-grid text-sm';
-
-            daysOfWeek.forEach((day, index) => {
-                const headerCell = document.createElement('div');
-                headerCell.className = 'day-cell day-header';
-                headerCell.textContent = day;
-                 if (index === 0) { headerCell.classList.add('text-red-500'); }
-                grid.appendChild(headerCell);
-            });
-
-            const firstDay = new Date(year, month, 1);
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const startingDay = firstDay.getDay();
-
-            for (let i = 0; i < startingDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'day-cell bg-gray-50';
-                grid.appendChild(emptyCell);
+            for (i = 1900; i < 2101 && offset > 0; i++) {
+                temp = getLunarYearDays(i);
+                offset -= temp;
             }
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div');
-                cell.className = 'day-cell';
+            if (offset < 0) {
+                offset += temp;
+                i--;
+            }
+
+            const lunarYear = i;
+            leap = getLunarLeapMonth(lunarYear);
+            let isLeap = false;
+
+            for (i = 1; i < 13 && offset > 0; i++) {
+                if (leap > 0 && i == (leap + 1) && !isLeap) {
+                    --i; isLeap = true; temp = getLunarLeapDays(lunarYear);
+                } else {
+                    temp = getLunarMonthDays(lunarYear, i);
+                }
+
+                if (isLeap && i == (leap + 1)) isLeap = false;
+                offset -= temp;
+            }
+
+            if (offset == 0 && leap > 0 && i == leap + 1) {
+                if (isLeap) {
+                    isLeap = false;
+                } else {
+                    isLeap = true;
+                    --i;
+                }
+            }
+
+            if (offset < 0) {
+                offset += temp;
+                --i;
+            }
+
+            const lunarMonth = i;
+            const lunarDay = offset + 1;
+            return { lunarDay, lunarMonth, lunarYear, isLeap };
+        }
+        // ===================================================================================
+
+        const yearInput = document.getElementById('year-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const todayBtn = document.getElementById('today-btn');
+        const printBtn = document.getElementById('print-btn');
+        const calendarContainer = document.getElementById('calendar-container');
+        const memorialNotesContainer = document.getElementById('memorial-notes-content');
+        
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const eventModal = document.getElementById('event-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const eventText = document.getElementById('event-text');
+        const saveEventBtn = document.getElementById('save-event-btn');
+        const cancelEventBtn = document.getElementById('cancel-event-btn');
+        const deleteEventBtn = document.getElementById('delete-event-btn');
+
+        const satOddBtn = document.getElementById('sat-odd-btn');
+        const satEvenBtn = document.getElementById('sat-even-btn');
+
+        let currentYear = new Date().getFullYear();
+        let currentEditingDate = null;
+        let saturdayOffRule = 'even'; // 'odd' or 'even'
+        let customEvents = {};
+
+        function loadEvents() {
+            const savedEvents = localStorage.getItem(`customEvents_${currentYear}`);
+            customEvents = savedEvents ? JSON.parse(savedEvents) : {};
+        }
+
+        function saveEvents() {
+            localStorage.setItem(`customEvents_${currentYear}`, JSON.stringify(customEvents));
+        }
+
+        function showModal(date) {
+            currentEditingDate = date;
+            const dateKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+            modalTitle.textContent = `Ghi chú cho ngày ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+            eventText.value = customEvents[dateKey] || '';
+
+            if (customEvents[dateKey]) {
+                deleteEventBtn.classList.remove('hidden');
+            } else {
+                deleteEventBtn.classList.add('hidden');
+            }
+            
+            modalBackdrop.classList.remove('hidden');
+            setTimeout(() => {
+                eventModal.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function hideModal() {
+            eventModal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modalBackdrop.classList.add('hidden');
+            }, 200);
+        }
+        
+        function getWeekNumber(d) {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            return weekNo;
+        }
+
+        function generateCalendar(year) {
+            currentYear = year;
+            loadEvents();
+            calendarContainer.innerHTML = '';
+            memorialNotesContainer.innerHTML = '';
+            
+            const collectedMemorials = {};
+
+            for (let month = 0; month < 12; month++) {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month-grid bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md';
                 
-                if (year === currentYear && month === currentMonth && day === currentDate) {
-                    cell.classList.add('today');
+                const monthTitle = document.createElement('h3');
+                monthTitle.className = 'text-xl font-bold text-center mb-4';
+                monthTitle.textContent = `Tháng ${month + 1} / ${year}`;
+                monthDiv.appendChild(monthTitle);
+
+                const daysGrid = document.createElement('div');
+                daysGrid.className = 'grid grid-cols-7 gap-1 text-center text-sm';
+                
+                ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'font-semibold text-gray-500 dark:text-gray-400';
+                    dayHeader.textContent = day;
+                    daysGrid.appendChild(dayHeader);
+                });
+
+                const firstDayOfMonth = new Date(year, month, 1);
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
+
+                for (let i = 0; i < startDayOfWeek; i++) {
+                    const emptyCell = document.createElement('div');
+                    daysGrid.appendChild(emptyCell);
+                }
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    const dayCell = document.createElement('div');
+                    const lunar = convertSolarToLunar(year, month + 1, day);
+                    const lunarKey = `${lunar.lunarMonth}-${lunar.lunarDay}`;
+                    const dateKey = `${year}-${month + 1}-${day}`;
+                    const solarKey = `${month + 1}-${day}`;
+                    
+                    let classes = 'day-cell flex flex-col items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700';
+                    
+                    const solarDaySpan = document.createElement('span');
+                    solarDaySpan.className = 'text-lg font-bold';
+                    solarDaySpan.textContent = day;
+                    
+                    const lunarDaySpan = document.createElement('span');
+                    lunarDaySpan.className = 'text-xs text-gray-500 dark:text-gray-400';
+                    
+                    let lunarDisplayText = lunar.lunarDay;
+                    if (lunar.lunarDay === 1) {
+                        lunarDisplayText = `${lunar.lunarDay}/${lunar.lunarMonth}${lunar.isLeap ? 'n' : ''}`;
+                    }
+                    lunarDaySpan.textContent = lunarDisplayText;
+
+                    // Check for today
+                    const today = new Date();
+                    if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                        classes += ' today';
+                    }
+
+                    // Check for special lunar days (mùng 1, 15)
+                    if (lunar.lunarDay === 1 || lunar.lunarDay === 15) {
+                        lunarDaySpan.classList.add('lunar-special-day', 'font-semibold');
+                    }
+
+                    // Check for memorial days
+                    if (MEMORIAL_DAYS[lunarKey]) {
+                        classes += ' memorial-day';
+                        if (!collectedMemorials[lunarKey]) {
+                             collectedMemorials[lunarKey] = {
+                                event: MEMORIAL_DAYS[lunarKey],
+                                solarDate: `${day}/${month + 1}/${year}`
+                             };
+                        }
+                    }
+
+                    // Check for public holidays
+                    if (PUBLIC_HOLIDAYS[solarKey]) {
+                        classes += ' public-holiday';
+                    }
+
+                    // Check for custom events
+                    if (customEvents[dateKey]) {
+                        classes += ' custom-event';
+                    }
+
+                    // Check for weekend off
+                    const dayOfWeek = date.getDay();
+                    if (dayOfWeek === 0) { // Sunday
+                        classes += ' weekend-off';
+                    } else if (dayOfWeek === 6) { // Saturday
+                        const weekNumber = getWeekNumber(date);
+                        if ((saturdayOffRule === 'even' && weekNumber % 2 === 0) || (saturdayOffRule === 'odd' && weekNumber % 2 !== 0)) {
+                             classes += ' weekend-off';
+                        }
+                    }
+
+                    dayCell.className = classes;
+                    dayCell.appendChild(solarDaySpan);
+                    dayCell.appendChild(lunarDaySpan);
+
+                    dayCell.onclick = () => showModal(date);
+
+                    daysGrid.appendChild(dayCell);
                 }
                 
-                const dayOfWeek = new Date(year, month, day).getDay();
-                const lunarDate = getLunarDate(day, month + 1, year);
-                const lunarDay = lunarDate.day;
-                const lunarMonth = lunarDate.month;
-                
-                const solarSpan = document.createElement('span');
-                solarSpan.textContent = day;
-                solarSpan.className = 'font-semibold text-base';
-
-                const lunarSpan = document.createElement('span');
-                lunarSpan.className = 'lunar-date';
-                lunarSpan.textContent = `${lunarDay === 1 ? '1/' + lunarMonth : lunarDay}`;
-
-                if (dayOfWeek === 0) { solarSpan.classList.add('text-red-500'); }
-                if (lunarDay === 1 || lunarDay === 15) { cell.classList.add('bg-yellow-200'); }
-
-                cell.appendChild(solarSpan);
-                cell.appendChild(lunarSpan);
-                grid.appendChild(cell);
+                monthDiv.appendChild(daysGrid);
+                calendarContainer.appendChild(monthDiv);
             }
-
-            monthDiv.appendChild(grid);
-            calendarContainer.appendChild(monthDiv);
+            
+            // Generate memorial notes
+            if (Object.keys(collectedMemorials).length > 0) {
+                 const notesList = document.createElement('ul');
+                 notesList.className = 'space-y-2 list-disc list-inside';
+                 Object.keys(collectedMemorials).sort((a,b) => {
+                     const [m1, d1] = a.split('-').map(Number);
+                     const [m2, d2] = b.split('-').map(Number);
+                     if (m1 !== m2) return m1 - m2;
+                     return d1 - d2;
+                 }).forEach(key => {
+                     const [lm, ld] = key.split('-');
+                     const item = collectedMemorials[key];
+                     const li = document.createElement('li');
+                     li.innerHTML = `<span class="font-semibold">Ngày ${ld}/${lm} Âm lịch</span> (tức ${item.solarDate} Dương lịch): ${item.event}`;
+                     notesList.appendChild(li);
+                 });
+                 memorialNotesContainer.appendChild(notesList);
+            } else {
+                memorialNotesContainer.textContent = 'Không có ngày giỗ nào được ghi trong năm nay.';
+            }
         }
 
-        // Logic để cuộn đến tháng chỉ định
-        if (scrollToMonth !== -1) {
-            // Dùng setTimeout để đảm bảo DOM đã được render xong trước khi cuộn
+        generateBtn.addEventListener('click', () => {
+            const year = parseInt(yearInput.value);
+            if (year >= 1900 && year <= 2100) {
+                generateCalendar(year);
+            } else {
+                alert('Vui lòng nhập năm trong khoảng từ 1900 đến 2100.');
+            }
+        });
+
+        todayBtn.addEventListener('click', () => {
+            const today = new Date();
+            yearInput.value = today.getFullYear();
+            generateCalendar(today.getFullYear());
             setTimeout(() => {
-                const targetMonthEl = document.getElementById(`month-${scrollToMonth}`);
-                if (targetMonthEl) {
-                    targetMonthEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const todayElement = document.querySelector('.today');
+                if(todayElement) {
+                    todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 100);
-        }
-    }
+        });
 
-    // Event Listeners
-    viewCalendarBtn.addEventListener('click', () => {
-        const year = parseInt(yearInput.value, 10);
-        if (year && year >= 1901 && year <= 2100) {
-            generateCalendar(year);
-        } else {
-            alert("Vui lòng nhập một năm hợp lệ (1901 - 2100).");
-        }
-    });
+        printBtn.addEventListener('click', () => {
+            window.print();
+        });
 
-    todayBtn.addEventListener('click', () => {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
+        satOddBtn.addEventListener('click', () => {
+            saturdayOffRule = 'odd';
+            satOddBtn.classList.add('bg-blue-500', 'text-white');
+            satEvenBtn.classList.remove('bg-blue-500', 'text-white');
+            if (yearInput.value) generateCalendar(parseInt(yearInput.value));
+        });
+
+        satEvenBtn.addEventListener('click', () => {
+            saturdayOffRule = 'even';
+            satEvenBtn.classList.add('bg-blue-500', 'text-white');
+            satOddBtn.classList.remove('bg-blue-500', 'text-white');
+            if (yearInput.value) generateCalendar(parseInt(yearInput.value));
+        });
+
+        // Modal event listeners
+        saveEventBtn.addEventListener('click', () => {
+            if (currentEditingDate) {
+                const dateKey = `${currentEditingDate.getFullYear()}-${currentEditingDate.getMonth() + 1}-${currentEditingDate.getDate()}`;
+                const text = eventText.value.trim();
+                if (text) {
+                    customEvents[dateKey] = text;
+                } else {
+                    delete customEvents[dateKey];
+                }
+                saveEvents();
+                generateCalendar(currentYear);
+                hideModal();
+            }
+        });
+
+        deleteEventBtn.addEventListener('click', () => {
+             if (currentEditingDate) {
+                const dateKey = `${currentEditingDate.getFullYear()}-${currentEditingDate.getMonth() + 1}-${currentEditingDate.getDate()}`;
+                delete customEvents[dateKey];
+                saveEvents();
+                generateCalendar(currentYear);
+                hideModal();
+            }
+        });
+
+        cancelEventBtn.addEventListener('click', hideModal);
+        modalBackdrop.addEventListener('click', (e) => {
+            if (e.target === modalBackdrop) {
+                hideModal();
+            }
+        });
+
+
+        // Initial load
         yearInput.value = currentYear;
-        // Gọi hàm generateCalendar và truyền vào tháng hiện tại để cuộn tới
-        generateCalendar(currentYear, currentMonth);
-    });
-
-    // Initial Load
-    window.addEventListener('load', () => {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-        yearInput.value = currentYear;
-        // Tải trang lần đầu cũng sẽ tự động cuộn đến tháng hiện tại
-        generateCalendar(currentYear, currentMonth);
-    });
-</script>
-
+        generateCalendar(currentYear);
+    </script>
 </body>
 </html>
+
+
+
+
 
